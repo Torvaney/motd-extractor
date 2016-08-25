@@ -1,0 +1,6 @@
+# Ignore contents of video dir (due to size)
+video/*.mp4
+video/*.wav
+
+# PyCharm hidden folders/files
+.idea
