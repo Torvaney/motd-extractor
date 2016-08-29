@@ -36,6 +36,18 @@ def extract_highlights(clip, file_name='output.mp4',
                        xlim=None, ylim=None,
                        sampling_rate=1, minimum_clip=60,
                        buffer_length=(5, 5)):
+    """
+    Extracts highlights from soccer video (primarily Match of the Day) using the presence of a scoreboard
+    :param clip: MoviePy VideoClip object contaning the full video to be trimmed.
+    :param file_name: Output file name.
+    :param xlim: List of 2 floats containing the horizontal parts of the screen to scan for the scoreboard. Numbers must
+    be between 0 and 1, where xlim=[0, 1] selects the full width of the screen.
+    :param ylim: As xlim but for the vertical section of the screen.
+    :param sampling_rate: Rate (in fps) to check video for the precense of a scoreboard.
+    :param minimum_clip: Threshold for a section of video to be included in output in seconds.
+    :param buffer_length: Length of buffer in seconds to add before and after each set of hihglights.
+    :return: None
+    """
 
     # Set scoreboard location
     xlim = [0.085, 0.284] if xlim is None else xlim
