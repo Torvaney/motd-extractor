@@ -33,9 +33,13 @@ def moving_average(values, window):
 
 
 def extract_highlights(clip, file_name='output.mp4',
-                       xlim=[0.085, 0.284], ylim=[0.05, 0.1],
+                       xlim=None, ylim=None,
                        sampling_rate=1, minimum_clip=60,
                        buffer_length=(5, 5)):
+
+    # Set scoreboard location
+    xlim = [0.085, 0.284] if xlim is None else xlim
+    ylim = [0.05, 0.1] if ylim is None else ylim
 
     resolution = get_resolution(clip)
 
