@@ -1,5 +1,5 @@
 # Automated MotD highlights extractor
-This repo contains a small python (3) module for automatically removing the banal and uninsightful commentary from Match of the day, leaving you with just footage of the actual football you wanted to watch in the firrst place.
+This repo contains a small python (3) module for automatically removing the banal and uninsightful commentary from Match of the day, leaving you with just footage of the actual football you wanted to watch in the first place.
 
 
 ## Example
