@@ -35,7 +35,7 @@ def moving_average(values, window):
 def extract_highlights(clip, file_name='output.mp4',
                        xlim=[0.085, 0.284], ylim=[0.05, 0.1],
                        sampling_rate=1, minimum_clip=60,
-                       buffer_length=5):
+                       buffer_length=(5, 5)):
 
     resolution = get_resolution(clip)
 
@@ -58,10 +58,10 @@ def extract_highlights(clip, file_name='output.mp4',
     start_stop = [(starts[i], stops[i]) for i in range(len(starts)) if (stops[i] - starts[i]) >= minimum_clip]
 
     # get highlights in a list
-    highlights = [clip.subclip(t_start=t[0] - buffer_length, t_end=t[1] + buffer_length) for t in start_stop]
+    highlights = [clip.subclip(t_start=t[0] - buffer_length[0], t_end=t[1] + buffer_length[1]) for t in start_stop]
     # add fade in/out (half buffer length?)
-    highlights = [h.fadein(buffer_length / 2) for h in highlights]
-    highlights = [h.fadeout(buffer_length / 2) for h in highlights]
+    highlights = [h.fadein(buffer_length[0] / 2) for h in highlights]
+    highlights = [h.fadeout(buffer_length[1] / 2) for h in highlights]
 
     # join videos together into one and write to file
     final_clip = mpy.concatenate_videoclips(highlights, method='compose')
