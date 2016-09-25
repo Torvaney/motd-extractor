@@ -1,6 +1,6 @@
 import moviepy.editor as mpy
 import numpy as np
-import progressbar
+from progressbar import ProgressBar
 from skimage.color import rgb2grey
 from skimage.feature import corner_harris, corner_peaks
 
@@ -35,7 +35,7 @@ def moving_average(values, window):
 def extract_highlights(clip, file_name='output.mp4',
                        xlim=None, ylim=None,
                        sampling_rate=1, minimum_clip=60,
-                       buffer_length=(5, 5)):
+                       buffer_length=(7, 7)):
     """
     Extracts highlights from soccer video (primarily Match of the Day) using the presence of a scoreboard
     :param clip: MoviePy VideoClip object contaning the full video to be trimmed.
@@ -61,7 +61,7 @@ def extract_highlights(clip, file_name='output.mp4',
 
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
-    bar = progressbar.ProgressBar()
+    bar = ProgressBar()
     n_corners = [find_corners(box_clip.get_frame(t)) for t in bar(frame_times)]
 
     rolling_corners = moving_average(n_corners, 30 * sampling_rate)
@@ -82,5 +82,19 @@ def extract_highlights(clip, file_name='output.mp4',
     # join videos together into one and write to file
     final_clip = mpy.concatenate_videoclips(highlights, method='compose')
     final_clip.write_videofile('./output/' + file_name)
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Extract highlights from Match of the Day.')
+    parser.add_argument('input', help='Name of input file in \'video\' directory', type=str)
+    parser.add_argument('output', help='Name of new output file in \'output\' directory', type=str)
+
+    args = parser.parse_args()
+
+    clip = load_video(args.input)
+    extract_highlights(clip, args.output)
+
 
 
