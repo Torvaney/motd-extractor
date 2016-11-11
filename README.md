@@ -18,8 +18,11 @@ motd.extract_highlights(my_clip, 'highlights_only.mp4')
 
 Terminal:
 ```terminal
-motd-extractor $ python3 scoreboard_slicer.py full_fat_motd.mp4 highlights_only.mp4
+motd-extractor $ python3 scoreboard_slicer.py [full video filename] [output video filename]
 ```
+
+
+This will take the video saved in `/motd-extractor/video/[full video filename]` and save a trimmed version to `/motd-extractor/output/[output video filename]`
 
 The module contains two primary functions:
  
