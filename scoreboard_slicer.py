@@ -3,6 +3,7 @@ import numpy as np
 from progressbar import ProgressBar
 from skimage.color import rgb2grey
 from skimage.feature import corner_harris, corner_peaks
+from multiprocessing import Pool
 
 
 def load_video(filename='motd-sample.mp4', in_folder=True):
@@ -17,7 +18,7 @@ def get_resolution(clip):
     return len(sample_frame[0]), len(sample_frame)
 
 
-def find_corners(image, min_dist=5):
+def find_image_corners(image, min_dist=5):
     """
     Get the number of Harris corner peaks in an image.
     :param image: array of RGB values
@@ -62,8 +63,13 @@ def extract_highlights(
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
 
-    bar = ProgressBar()
-    n_corners = [find_corners(box_clip.get_frame(t)) for t in bar(frame_times)]
+    # multiprocessing.Pool requires a named function with a single argument
+    def find_clip_corners(sample_times):
+        return [find_image_corners(box_clip.get_frame(t)) for t in sample_times]
+
+    # Find number of corners in each frame in parallel
+    workers = Pool(4)
+    n_corners = workers.map(find_clip_corners, frame_times)
 
     rolling_corners = moving_average(n_corners, 30 * sampling_rate)
     is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
@@ -95,5 +101,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    clip = load_video(args.input)
-    extract_highlights(clip, args.output)
+    video_clip = load_video(args.input)
+    extract_highlights(video_clip, args.output)
