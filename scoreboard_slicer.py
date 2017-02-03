@@ -56,6 +56,25 @@ def moving_average(values, window):
     return sma
 
 
+def get_highlight_times(corners_list, sampling_rate, smoothing_window=30):
+    """
+    Get the start and stop times of highlights footage based on the number of corner peaks throughout the clip.
+    :param corners_list: A list of the number of corners at frames taken from the clip at the given sampling rate
+    :param sampling_rate: Sampling rate of the clip that the corners were calculated for
+    :param smoothing_window: Width of window (in seconds) for the rolling average to be calculated
+    :return: list of start and stop times for highlights.
+    """
+
+    rolling_corners = moving_average(corners_list, smoothing_window * sampling_rate)
+    is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
+
+    changes = np.diff(is_highlights)
+    start_times = np.where(changes == 1)[0] / sampling_rate
+    stop_times = np.where(changes == -1)[0] / sampling_rate
+
+    return start_times, stop_times
+
+
 def extract_highlights(
         clip, file_name='output.mp4',
         xlim=(0.085, 0.284), ylim=(0.05, 0.1),
@@ -85,12 +104,7 @@ def extract_highlights(
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
     n_corners = find_clip_corners(box_clip, frame_times, parallel_workers)
 
-    rolling_corners = moving_average(n_corners, 30 * sampling_rate)
-    is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
-
-    changes = np.diff(is_highlights)
-    start_times = np.where(changes == 1)[0] / sampling_rate
-    stop_times = np.where(changes == -1)[0] / sampling_rate
+    start_times, stop_times = get_highlight_times(n_corners, sampling_rate)
 
     highlight_times = [(start, stop) for start, stop in zip(start_times, stop_times) if (stop - start) >= minimum_clip]
 
