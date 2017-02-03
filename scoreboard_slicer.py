@@ -9,7 +9,6 @@ from skimage.feature import corner_harris, corner_peaks
 def load_video(filename='motd-sample.mp4', in_folder=True):
     video_loc = './video/' if in_folder else ''
     clip = mpy.VideoFileClip(video_loc + filename)
-    # change resolution to standardise incoming video & speed up image processing
     return clip
 
 
@@ -95,6 +94,3 @@ if __name__ == '__main__':
 
     clip = load_video(args.input)
     extract_highlights(clip, args.output)
-
-
-
