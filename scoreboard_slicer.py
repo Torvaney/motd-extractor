@@ -120,6 +120,11 @@ def extract_highlights(
     final_clip.write_videofile('./output/' + file_name)
 
 
+def run(input_file, output_file):
+    clip = load_video(input_file)
+    extract_highlights(clip, output_file)
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -129,5 +134,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    video_clip = load_video(args.input)
-    extract_highlights(video_clip, args.output)
+    run(args.input, args.output)
