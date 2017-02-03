@@ -30,6 +30,26 @@ def find_image_corners(image, min_dist=5):
     return len(corners)
 
 
+def find_clip_corners(clip, sample_times, n_workers=4):
+    """
+    Find the number of corners in a selection of a moviepy clip's frames in parallel
+    :param clip: moviepy video clip
+    :param sample_times: iterable of the times (in seconds) of the frames to be used
+    :param n_workers: number of workers to be used by multiprocessing.Pool
+    :return: a list containing the number of corners in at each of the times in sample_times
+    """
+
+    # multiprocessing.Pool requires a named function with a single argument
+    def find_frame_corners(frame_time):
+        return find_image_corners(clip.get_frame(frame_time))
+
+    # Find number of corners in each frame in parallel
+    workers = Pool(n_workers)
+    n_corners = workers.map(find_frame_corners, sample_times)
+
+    return n_corners
+
+
 def moving_average(values, window):
     weights = np.repeat(1.0, window) / window
     sma = np.convolve(values, weights, 'same')
@@ -40,7 +60,7 @@ def extract_highlights(
         clip, file_name='output.mp4',
         xlim=(0.085, 0.284), ylim=(0.05, 0.1),
         sampling_rate=1, minimum_clip=60,
-        buffer_length=(7, 7)):
+        buffer_length=(7, 7), parallel_workers=4):
     """
     Extracts highlights from soccer video (primarily Match of the Day) using the presence of a scoreboard
     :param clip: MoviePy VideoClip object contaning the full video to be trimmed.
@@ -51,6 +71,7 @@ def extract_highlights(
     :param sampling_rate: Rate (in fps) to check video for the precense of a scoreboard.
     :param minimum_clip: Threshold for a  continuous section of video to be included in output in seconds.
     :param buffer_length: Length of buffer in seconds to add before and after each set of hihglights.
+    :param parallel_workers: Number of parallel workers to be passes to multiprocessing.Pool
     :return: None
     """
 
@@ -62,14 +83,7 @@ def extract_highlights(
 
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
-
-    # multiprocessing.Pool requires a named function with a single argument
-    def find_clip_corners(sample_times):
-        return [find_image_corners(box_clip.get_frame(t)) for t in sample_times]
-
-    # Find number of corners in each frame in parallel
-    workers = Pool(4)
-    n_corners = workers.map(find_clip_corners, frame_times)
+    n_corners = find_clip_corners(box_clip, frame_times, parallel_workers)
 
     rolling_corners = moving_average(n_corners, 30 * sampling_rate)
     is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
