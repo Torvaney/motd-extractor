@@ -35,10 +35,11 @@ def moving_average(values, window):
     return sma
 
 
-def extract_highlights(clip, file_name='output.mp4',
-                       xlim=None, ylim=None,
-                       sampling_rate=1, minimum_clip=60,
-                       buffer_length=(7, 7)):
+def extract_highlights(
+        clip, file_name='output.mp4',
+        xlim=(0.085, 0.284), ylim=(0.05, 0.1),
+        sampling_rate=1, minimum_clip=60,
+        buffer_length=(7, 7)):
     """
     Extracts highlights from soccer video (primarily Match of the Day) using the presence of a scoreboard
     :param clip: MoviePy VideoClip object contaning the full video to be trimmed.
@@ -47,20 +48,16 @@ def extract_highlights(clip, file_name='output.mp4',
     be between 0 and 1, where xlim=[0, 1] selects the full width of the screen.
     :param ylim: As xlim but for the vertical section of the screen.
     :param sampling_rate: Rate (in fps) to check video for the precense of a scoreboard.
-    :param minimum_clip: Threshold for a section of video to be included in output in seconds.
+    :param minimum_clip: Threshold for a  continuous section of video to be included in output in seconds.
     :param buffer_length: Length of buffer in seconds to add before and after each set of hihglights.
     :return: None
     """
 
-    # Set scoreboard location
-    xlim = [0.085, 0.284] if xlim is None else xlim
-    ylim = [0.05, 0.1] if ylim is None else ylim
+    width, height = get_resolution(clip)
 
-    resolution = get_resolution(clip)
-
-    # Crop to top left corner
-    box_clip = clip.crop(x1=xlim[0] * resolution[0], x2=xlim[1] * resolution[0],
-                         y1=ylim[0] * resolution[1], y2=ylim[1] * resolution[1])
+    # Crop to where the scoreboard is during highlights (defaults to top left corner)
+    box_clip = clip.crop(x1=xlim[0] * width, x2=xlim[1] * width,
+                         y1=ylim[0] * height, y2=ylim[1] * height)
 
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
