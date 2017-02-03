@@ -1,9 +1,9 @@
+from multiprocessing import Pool
+
 import moviepy.editor as mpy
 import numpy as np
-from progressbar import ProgressBar
 from skimage.color import rgb2grey
 from skimage.feature import corner_harris, corner_peaks
-from multiprocessing import Pool
 
 
 def load_video(filename='motd-sample.mp4', in_folder=True):
