@@ -61,21 +61,23 @@ def extract_highlights(
 
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
+
     bar = ProgressBar()
     n_corners = [find_corners(box_clip.get_frame(t)) for t in bar(frame_times)]
 
     rolling_corners = moving_average(n_corners, 30 * sampling_rate)
     is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
 
-    changes = np.diff(is_highlights)
-    starts = np.where(changes == 1)[0]
-    stops = np.where(changes == -1)[0]
+    changes = np.diff(is_highlights)  # Find frames where
+    start_times = np.where(changes == 1)[0]
+    stop_times = np.where(changes == -1)[0]
 
-    start_stop = [(starts[i], stops[i]) for i in range(len(starts)) if (stops[i] - starts[i]) >= minimum_clip]
+    highlight_times = [(start, stop) for start, stop in zip(start_times, stop_times) if (stop - start) >= minimum_clip]
 
     # get highlights in a list
-    highlights = [clip.subclip(t_start=t[0] - buffer_length[0], t_end=t[1] + buffer_length[1]) for t in start_stop]
-    # add fade in/out (half buffer length?)
+    highlights = [clip.subclip(t_start=t[0] - buffer_length[0], t_end=t[1] + buffer_length[1]) for t in highlight_times]
+
+    # add fade in/out (half buffer length)
     highlights = [h.fadein(buffer_length[0] / 2) for h in highlights]
     highlights = [h.fadeout(buffer_length[1] / 2) for h in highlights]
 
