@@ -5,21 +5,25 @@ from skimage.color import rgb2grey
 from skimage.feature import corner_harris, corner_peaks
 
 
-# Load video
 def load_video(filename='motd-sample.mp4', in_folder=True):
     video_loc = './video/' if in_folder else ''
     clip = mpy.VideoFileClip(video_loc + filename)
     return clip
 
 
-# Get clip's resolution (pixels)
 def get_resolution(clip):
+    """ Get the resolution of a moviepy clip (width, height)"""
     sample_frame = clip.get_frame(0)
     return len(sample_frame[0]), len(sample_frame)
 
 
-# Take a frame of a movie and return number of corners
 def find_corners(image, min_dist=5):
+    """
+    Get the number of Harris corner peaks in an image.
+    :param image: array of RGB values
+    :param min_dist: minimum distance for two separate peaks to be identified
+    :return: number of corner peaks in the image as int
+    """
     bw_image = rgb2grey(image)
     corners = corner_peaks(corner_harris(bw_image), min_distance=min_dist)
     return len(corners)
