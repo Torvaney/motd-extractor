@@ -1,3 +1,4 @@
+from __future__ import print_function
 from multiprocessing import Pool
 
 import moviepy.editor as mpy
@@ -96,33 +97,39 @@ def extract_highlights(
 
     width, height = get_resolution(clip)
 
+    print('Cropping video to scoreboard...')
     # Crop to where the scoreboard is during highlights (defaults to top left corner)
     box_clip = clip.crop(x1=xlim[0] * width, x2=xlim[1] * width,
                          y1=ylim[0] * height, y2=ylim[1] * height)
 
+    print('Finding corner peaks... (this may take some time)')
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
     n_corners = find_clip_corners(box_clip, frame_times, parallel_workers)
 
     start_times, stop_times = get_highlight_times(n_corners, sampling_rate)
-
     highlight_times = [(start, stop) for start, stop in zip(start_times, stop_times) if (stop - start) >= minimum_clip]
 
+    print('Extracting highlights footage...')
     # get highlights in a list
     highlights = [clip.subclip(t_start=t[0] - buffer_length[0], t_end=t[1] + buffer_length[1]) for t in highlight_times]
 
+    print('Applying fade to clips...')
     # add fade in/out (half buffer length)
     highlights = [h.fadein(buffer_length[0] / 2) for h in highlights]
     highlights = [h.fadeout(buffer_length[1] / 2) for h in highlights]
 
+    print('Stitching highlights into a continuous clip...')
     # join videos together into one and write to file
     final_clip = mpy.concatenate_videoclips(highlights, method='compose')
     final_clip.write_videofile('./output/' + file_name)
 
 
 def run(input_file, output_file):
+    print('Loading video file')
     clip = load_video(input_file)
     extract_highlights(clip, output_file)
+    print('Done!')
 
 
 if __name__ == '__main__':
