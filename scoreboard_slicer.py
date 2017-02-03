@@ -74,7 +74,7 @@ def extract_highlights(
     rolling_corners = moving_average(n_corners, 30 * sampling_rate)
     is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
 
-    changes = np.diff(is_highlights)  # Find frames where
+    changes = np.diff(is_highlights)
     start_times = np.where(changes == 1)[0]
     stop_times = np.where(changes == -1)[0]
 
