@@ -89,8 +89,8 @@ def extract_highlights(
     is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
 
     changes = np.diff(is_highlights)
-    start_times = np.where(changes == 1)[0]
-    stop_times = np.where(changes == -1)[0]
+    start_times = np.where(changes == 1)[0] / sampling_rate
+    stop_times = np.where(changes == -1)[0] / sampling_rate
 
     highlight_times = [(start, stop) for start, stop in zip(start_times, stop_times) if (stop - start) >= minimum_clip]
 
