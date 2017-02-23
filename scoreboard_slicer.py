@@ -1,54 +1,28 @@
-from __future__ import print_function
-from multiprocessing import Pool
-
 import moviepy.editor as mpy
 import numpy as np
+from progressbar import ProgressBar
 from skimage.color import rgb2grey
 from skimage.feature import corner_harris, corner_peaks
 
 
+# Load video
 def load_video(filename='motd-sample.mp4', in_folder=True):
     video_loc = './video/' if in_folder else ''
     clip = mpy.VideoFileClip(video_loc + filename)
     return clip
 
 
+# Get clip's resolution (pixels)
 def get_resolution(clip):
-    """ Get the resolution of a moviepy clip (width, height)"""
     sample_frame = clip.get_frame(0)
     return len(sample_frame[0]), len(sample_frame)
 
 
-def find_image_corners(image, min_dist=5):
-    """
-    Get the number of Harris corner peaks in an image.
-    :param image: array of RGB values
-    :param min_dist: minimum distance for two separate peaks to be identified
-    :return: number of corner peaks in the image as int
-    """
+# Take a frame of a movie and return number of corners
+def find_corners(image, min_dist=5):
     bw_image = rgb2grey(image)
     corners = corner_peaks(corner_harris(bw_image), min_distance=min_dist)
     return len(corners)
-
-
-def find_clip_corners(clip, sample_times, n_workers=4):
-    """
-    Find the number of corners in a selection of a moviepy clip's frames in parallel
-    :param clip: moviepy video clip
-    :param sample_times: iterable of the times (in seconds) of the frames to be used
-    :param n_workers: number of workers to be used by multiprocessing.Pool
-    :return: a list containing the number of corners in at each of the times in sample_times
-    """
-
-    # multiprocessing.Pool requires a named function with a single argument
-    def find_frame_corners(frame_time):
-        return find_image_corners(clip.get_frame(frame_time))
-
-    # Find number of corners in each frame in parallel
-    workers = Pool(n_workers)
-    n_corners = workers.map(find_frame_corners, sample_times)
-
-    return n_corners
 
 
 def moving_average(values, window):
@@ -57,30 +31,10 @@ def moving_average(values, window):
     return sma
 
 
-def get_highlight_times(corners_list, sampling_rate, smoothing_window=30):
-    """
-    Get the start and stop times of highlights footage based on the number of corner peaks throughout the clip.
-    :param corners_list: A list of the number of corners at frames taken from the clip at the given sampling rate
-    :param sampling_rate: Sampling rate of the clip that the corners were calculated for
-    :param smoothing_window: Width of window (in seconds) for the rolling average to be calculated
-    :return: list of start and stop times for highlights.
-    """
-
-    rolling_corners = moving_average(corners_list, smoothing_window * sampling_rate)
-    is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
-
-    changes = np.diff(is_highlights)
-    start_times = np.where(changes == 1)[0] / sampling_rate
-    stop_times = np.where(changes == -1)[0] / sampling_rate
-
-    return start_times, stop_times
-
-
-def extract_highlights(
-        clip, file_name='output.mp4',
-        xlim=(0.085, 0.284), ylim=(0.05, 0.1),
-        sampling_rate=1, minimum_clip=60,
-        buffer_length=(7, 7), parallel_workers=4):
+def extract_highlights(clip, file_name='output.mp4',
+                       xlim=None, ylim=None,
+                       sampling_rate=1, minimum_clip=60,
+                       buffer_length=(7, 7)):
     """
     Extracts highlights from soccer video (primarily Match of the Day) using the presence of a scoreboard
     :param clip: MoviePy VideoClip object contaning the full video to be trimmed.
@@ -89,47 +43,44 @@ def extract_highlights(
     be between 0 and 1, where xlim=[0, 1] selects the full width of the screen.
     :param ylim: As xlim but for the vertical section of the screen.
     :param sampling_rate: Rate (in fps) to check video for the precense of a scoreboard.
-    :param minimum_clip: Threshold for a  continuous section of video to be included in output in seconds.
+    :param minimum_clip: Threshold for a section of video to be included in output in seconds.
     :param buffer_length: Length of buffer in seconds to add before and after each set of hihglights.
-    :param parallel_workers: Number of parallel workers to be passes to multiprocessing.Pool
     :return: None
     """
 
-    width, height = get_resolution(clip)
+    # Set scoreboard location
+    xlim = [0.085, 0.284] if xlim is None else xlim
+    ylim = [0.05, 0.1] if ylim is None else ylim
 
-    print('Cropping video to scoreboard...')
-    # Crop to where the scoreboard is during highlights (defaults to top left corner)
-    box_clip = clip.crop(x1=xlim[0] * width, x2=xlim[1] * width,
-                         y1=ylim[0] * height, y2=ylim[1] * height)
+    resolution = get_resolution(clip)
 
-    print('Finding corner peaks... (this may take some time)')
+    # Crop to top left corner
+    box_clip = clip.crop(x1=xlim[0] * resolution[0], x2=xlim[1] * resolution[0],
+                         y1=ylim[0] * resolution[1], y2=ylim[1] * resolution[1])
+
     # Get number of 'corners' for each frame at given sampling rate
     frame_times = np.arange(0, box_clip.duration, 1 / sampling_rate)
-    n_corners = find_clip_corners(box_clip, frame_times, parallel_workers)
+    bar = ProgressBar()
+    n_corners = [find_corners(box_clip.get_frame(t)) for t in bar(frame_times)]
 
-    start_times, stop_times = get_highlight_times(n_corners, sampling_rate)
-    highlight_times = [(start, stop) for start, stop in zip(start_times, stop_times) if (stop - start) >= minimum_clip]
+    rolling_corners = moving_average(n_corners, 30 * sampling_rate)
+    is_highlights = np.where([rolling_corners > np.mean(rolling_corners)], 1, 0)[0]
 
-    print('Extracting highlights footage...')
+    changes = np.diff(is_highlights)
+    starts = np.where(changes == 1)[0]
+    stops = np.where(changes == -1)[0]
+
+    start_stop = [(starts[i], stops[i]) for i in range(len(starts)) if (stops[i] - starts[i]) >= minimum_clip]
+
     # get highlights in a list
-    highlights = [clip.subclip(t_start=t[0] - buffer_length[0], t_end=t[1] + buffer_length[1]) for t in highlight_times]
-
-    print('Applying fade to clips...')
-    # add fade in/out (half buffer length)
+    highlights = [clip.subclip(t_start=t[0] - buffer_length[0], t_end=t[1] + buffer_length[1]) for t in start_stop]
+    # add fade in/out (half buffer length?)
     highlights = [h.fadein(buffer_length[0] / 2) for h in highlights]
     highlights = [h.fadeout(buffer_length[1] / 2) for h in highlights]
 
-    print('Stitching highlights into a continuous clip...')
     # join videos together into one and write to file
     final_clip = mpy.concatenate_videoclips(highlights, method='compose')
     final_clip.write_videofile('./output/' + file_name)
-
-
-def run(input_file, output_file):
-    print('Loading video file')
-    clip = load_video(input_file)
-    extract_highlights(clip, output_file)
-    print('Done!')
 
 
 if __name__ == '__main__':
@@ -141,4 +92,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    run(args.input, args.output)
+    clip = load_video(args.input)
+    extract_highlights(clip, args.output)
